@@ -14,7 +14,8 @@ function onOpen() {
       .addItem("🔁 Full Rebuild (All Funds)", "updateAllFunds")
       .addItem("⚡ Quick Update (Existing Funds)", "quickUpdateFunds"))
     .addSubMenu(ui.createMenu("📘 Audit Tools")
-      .addItem("📊 Update Comprehensive Summary", "createOrUpdateAuditSummary"))
+      .addItem("📊 Update Comprehensive Summary", "createOrUpdateAuditSummary")
+      .addItem("🔧 Simple Summary (No Hyperlinks)", "createSimpleSummary"))
     .addSeparator()
     .addItem("❓ Help & Documentation", "showHelp")
     .addToUi();

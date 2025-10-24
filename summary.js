@@ -4,6 +4,7 @@ function createOrUpdateAuditSummary() {
     if (!masterSheet) throw new Error("❌ Sheet 'VN - Master Ledger' not found.");
   
     const data = masterSheet.getDataRange().getValues();
+    const richData = masterSheet.getDataRange().getRichTextValues();
     const headers = data[0];
     const rows = data.slice(1);
   
@@ -17,42 +18,53 @@ function createOrUpdateAuditSummary() {
   
     // --- Group by Account ---
     const accountMap = {};
-    rows.forEach(row => {
+    rows.forEach((row, i) => {
       const account = row[accountCol];
       const debit = parseFloat(row[debitCol]) || 0;
       const credit = parseFloat(row[creditCol]) || 0;
       if (!account) return;
-      if (!accountMap[account]) accountMap[account] = { debit: 0, credit: 0 };
+      if (!accountMap[account]) accountMap[account] = { debit: 0, credit: 0, rich: [] };
       accountMap[account].debit += debit;
       accountMap[account].credit += credit;
+      accountMap[account].rich.push(richData[i + 1]);
     });
   
-    const accountData = Object.entries(accountMap).map(([account, { debit, credit }]) => [
-      account,
-      debit,
-      credit,
-      debit - credit,
-    ]);
+    const accountData = Object.entries(accountMap).map(([account, { debit, credit }]) => {
+      return [
+        account, // Just use the account name directly for now
+        debit,
+        credit,
+        debit - credit,
+      ];
+    });
   
-    // --- Group by Fund ---
+    // --- Group by Fund (only Revenue and Expense accounts) ---
     const fundMap = {};
-    rows.forEach(row => {
+    rows.forEach((row, i) => {
       const fund = row[fundCol];
+      const account = row[accountCol];
       const debit = parseFloat(row[debitCol]) || 0;
       const credit = parseFloat(row[creditCol]) || 0;
-      if (!fund) return;
-      if (!fundMap[fund]) fundMap[fund] = { debit: 0, credit: 0 };
+      
+      // Only include Revenue and Expense accounts
+      if (!fund || !account) return;
+      if (!/Revenue|Expense/i.test(account)) return;
+      
+      if (!fundMap[fund]) fundMap[fund] = { debit: 0, credit: 0, rich: [] };
       fundMap[fund].debit += debit;
       fundMap[fund].credit += credit;
+      fundMap[fund].rich.push(richData[i + 1]);
     });
   
-    const fundData = Object.entries(fundMap).map(([fund, { debit, credit }]) => [
-      "Fund",
-      fund,
-      debit,
-      credit,
-      credit - debit, // Remaining balance
-    ]);
+    const fundData = Object.entries(fundMap).map(([fund, { debit, credit }]) => {
+      return [
+        "Fund",
+        fund, // Just use the fund name directly for now
+        debit,
+        credit,
+        credit - debit, // Remaining balance
+      ];
+    });
   
     // --- Categorize accounts into 3 groups ---
     const expensesRevenues = accountData.filter(([a]) => /Expense|Revenue/i.test(a));
@@ -108,6 +120,59 @@ function createOrUpdateAuditSummary() {
           .setFontSize(10)
           .setFontFamily("Arial")
           .setVerticalAlignment("middle");
+        
+        // Add hyperlinks using the working method from the older script
+        if (isFundTable) {
+          // Add hyperlinks for fund names (column B)
+          data.forEach((row, index) => {
+            const fundName = row[1]; // Fund name is in column B
+            const fundSheetName = "Fund - " + fundName;
+            const fundSheet = ss.getSheetByName(fundSheetName);
+            if (fundSheet) {
+              const cell = summary.getRange(dataStart + index, 2);
+              const richText = SpreadsheetApp.newRichTextValue()
+                .setText(fundName)
+                .setLinkUrl(`#gid=${fundSheet.getSheetId()}`)
+                .build();
+              cell.setRichTextValue(richText);
+            }
+          });
+        } else {
+          // Add hyperlinks for account names (column A)
+          data.forEach((row, index) => {
+            const accountName = row[0]; // Account name is in column A
+            let accountSheet = ss.getSheetByName(accountName);
+            
+            // If exact name not found, try some common variations
+            if (!accountSheet) {
+              // Try with "Wallet" prefix (common for custodian accounts)
+              accountSheet = ss.getSheetByName("VN - Wallet " + accountName.replace("VN - ", ""));
+            }
+            if (!accountSheet) {
+              // Try without "VN - " prefix
+              accountSheet = ss.getSheetByName(accountName.replace("VN - ", ""));
+            }
+            if (!accountSheet) {
+              // Try with just the name part
+              const namePart = accountName.split(" ").slice(-2).join(" "); // Get last two words
+              accountSheet = ss.getSheetByName(namePart);
+            }
+            
+            if (accountSheet) {
+              const cell = summary.getRange(dataStart + index, 1);
+              const richText = SpreadsheetApp.newRichTextValue()
+                .setText(accountName)
+                .setLinkUrl(`#gid=${accountSheet.getSheetId()}`)
+                .build();
+              cell.setRichTextValue(richText);
+            } else {
+              // Debug: log what sheets are available
+              console.log(`Sheet not found for: ${accountName}`);
+              const allSheets = ss.getSheets().map(s => s.getName());
+              console.log(`Available sheets: ${allSheets.join(", ")}`);
+            }
+          });
+        }
   
         // Totals
         const totalDebit = data.reduce((s, r) => s + r[isFundTable ? 2 : 1], 0);
@@ -143,6 +208,7 @@ function createOrUpdateAuditSummary() {
   
     // --- Insert Fund Summary first ---
     let nextRow = 7;
+    console.log("Fund Data:", fundData); // Debug log
     nextRow = insertTable("📊 FUND SUMMARY", nextRow, fundData, true);
     
     // Add spacing and section header
@@ -152,6 +218,7 @@ function createOrUpdateAuditSummary() {
     nextRow += 2;
     
     // --- Insert Account Summary tables ---
+    console.log("Expenses/Revenues:", expensesRevenues); // Debug log
     nextRow = insertTable("I. Revenues & Expenses", nextRow, expensesRevenues);
     nextRow = insertTable("II. Indovina Bank Accounts", nextRow, indovina);
     nextRow = insertTable("III. Custodian Accounts", nextRow, custodians);
