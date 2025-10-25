@@ -58,8 +58,7 @@ function createOrUpdateAuditSummary() {
   
     const fundData = Object.entries(fundMap).map(([fund, { debit, credit }]) => {
       return [
-        "Fund",
-        fund, // Just use the fund name directly for now
+        fund, // Just the fund name (no "Type" column)
         debit,
         credit,
         credit - debit, // Remaining balance
@@ -95,7 +94,7 @@ function createOrUpdateAuditSummary() {
     // Helper function to insert one formatted table
     function insertTable(title, startRow, data, isFundTable = false) {
       const headers = isFundTable ? 
-        ["Type", "Name", "Total Debit (VND)", "Total Credit (VND)", "Remaining (VND)"] :
+        ["Name", "Total Debit (VND)", "Total Credit (VND)", "Remaining (VND)"] :
         ["Account", "Total Debit (VND)", "Total Credit (VND)", "Remaining funds"];
       const tableStart = startRow + 1;
       const dataStart = tableStart + 1;
@@ -119,17 +118,18 @@ function createOrUpdateAuditSummary() {
         summary.getRange(dataStart, 1, data.length, headers.length)
           .setFontSize(10)
           .setFontFamily("Arial")
-          .setVerticalAlignment("middle");
+          .setVerticalAlignment("middle")
+          .setHorizontalAlignment("center");
         
         // Add hyperlinks using the working method from the older script
         if (isFundTable) {
-          // Add hyperlinks for fund names (column B)
+          // Add hyperlinks for fund names (column A)
           data.forEach((row, index) => {
-            const fundName = row[1]; // Fund name is in column B
+            const fundName = row[0]; // Fund name is now in column A
             const fundSheetName = "Fund - " + fundName;
             const fundSheet = ss.getSheetByName(fundSheetName);
             if (fundSheet) {
-              const cell = summary.getRange(dataStart + index, 2);
+              const cell = summary.getRange(dataStart + index, 1);
               const richText = SpreadsheetApp.newRichTextValue()
                 .setText(fundName)
                 .setLinkUrl(`#gid=${fundSheet.getSheetId()}`)
@@ -175,14 +175,14 @@ function createOrUpdateAuditSummary() {
         }
   
         // Totals
-        const totalDebit = data.reduce((s, r) => s + r[isFundTable ? 2 : 1], 0);
-        const totalCredit = data.reduce((s, r) => s + r[isFundTable ? 3 : 2], 0);
+        const totalDebit = data.reduce((s, r) => s + r[isFundTable ? 1 : 1], 0);
+        const totalCredit = data.reduce((s, r) => s + r[isFundTable ? 2 : 2], 0);
         const totalDiff = isFundTable ? totalCredit - totalDebit : totalDebit - totalCredit;
         const totalRow = dataStart + data.length;
         
         const totalLabel = isFundTable ? "GRAND TOTAL (All Account)" : "TOTAL";
         const totalData = isFundTable ? 
-          ["", totalLabel, totalDebit, totalCredit, totalDiff] :
+          [totalLabel, totalDebit, totalCredit, totalDiff] :
           [totalLabel, totalDebit, totalCredit, totalDiff];
           
         summary.getRange(totalRow, 1, 1, headers.length).setValues([totalData]);
@@ -206,8 +206,56 @@ function createOrUpdateAuditSummary() {
       }
     }
   
-    // --- Insert Fund Summary first ---
+    // --- Insert VN - Master Ledger section first ---
     let nextRow = 7;
+    summary.getRange(nextRow, 1).setValue("📋 VN - MASTER LEDGER")
+      .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
+    nextRow += 2;
+    
+    // Create table for VN - Master Ledger
+    const masterTableStart = nextRow;
+    const masterDataStart = nextRow + 1;
+    
+    // Headers
+    summary.getRange(masterTableStart, 1, 1, 1).setValues([["Dataset"]])
+      .setFontWeight("bold")
+      .setFontSize(11)
+      .setFontColor("#ffffff")
+      .setBackground("#0b5394")
+      .setHorizontalAlignment("center")
+      .setVerticalAlignment("middle");
+    
+    // Data row - make the VN - Master Ledger text itself clickable
+    const masterSheetLink = summary.getRange(masterDataStart, 1);
+    const masterRichText = SpreadsheetApp.newRichTextValue()
+      .setText("VN - Master Ledger")
+      .setLinkUrl(`#gid=${masterSheet.getSheetId()}`)
+      .build();
+    masterSheetLink.setRichTextValue(masterRichText)
+      .setFontSize(11)
+      .setFontColor("#0b5394")
+      .setFontWeight("bold")
+      .setHorizontalAlignment("center")
+      .setVerticalAlignment("middle");
+    
+    // Style the data row
+    summary.getRange(masterDataStart, 1, 1, 1)
+      .setFontSize(11)
+      .setFontFamily("Arial")
+      .setVerticalAlignment("middle")
+      .setHorizontalAlignment("center")
+      .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+    
+    // Border for the whole table
+    summary.getRange(masterTableStart, 1, 2, 1)
+      .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+    
+    // Set column width for better visibility
+    summary.setColumnWidth(1, 200);
+    
+    nextRow = masterDataStart + 3;
+    
+    // --- Insert Fund Summary ---
     console.log("Fund Data:", fundData); // Debug log
     nextRow = insertTable("📊 FUND SUMMARY", nextRow, fundData, true);
     
@@ -235,7 +283,13 @@ function createOrUpdateAuditSummary() {
       .setWrap(true)
       .setBackground("#f5f5f5");
   
-    summary.autoResizeColumns(1, 5);
+    // Set proper column widths for all tables
+    summary.setColumnWidth(1, 200); // Name/Account column
+    summary.setColumnWidth(2, 150); // Debit column
+    summary.setColumnWidth(3, 150); // Credit column
+    summary.setColumnWidth(4, 150); // Remaining column
+    summary.setColumnWidth(5, 150); // Extra column for fund tables
+    
     summary.setRowHeights(1, nextRow + 3, 22);
     summary.getRange("A1:A3").setHorizontalAlignment("left");
   

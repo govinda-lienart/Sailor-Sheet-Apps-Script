@@ -52,8 +52,17 @@ function updateAllFunds() {
       // --- Match column widths ---
       columnWidths.forEach((width, i) => targetSheet.setColumnWidth(i + 1, width));
   
-      // --- Write data ---
+      // --- Write data (sorted by date) ---
       const rows = entries.map(e => e.row);
+      
+      // Sort by date column (column B - dd/mm/YY)
+      const dateCol = 1; // Column B is index 1
+      rows.sort((a, b) => {
+        const dateA = new Date(a[dateCol]);
+        const dateB = new Date(b[dateCol]);
+        return dateA - dateB; // Oldest to newest
+      });
+      
       targetSheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   
       // --- Style data ---
@@ -129,6 +138,15 @@ function updateAllFunds() {
       const sheet = ss.getSheetByName("Fund - " + fund);
       if (sheet) {
         const rows = fundMap[fund];
+        
+        // Sort by date column (column B - dd/mm/YY)
+        const dateCol = 1; // Column B is index 1
+        rows.sort((a, b) => {
+          const dateA = new Date(a[dateCol]);
+          const dateB = new Date(b[dateCol]);
+          return dateA - dateB; // Oldest to newest
+        });
+        
         const lastCol = sheet.getLastColumn();
         sheet.getRange(2, 1, sheet.getLastRow(), lastCol).clearContent();
         sheet.getRange(2, 1, rows.length, lastCol).setValues(rows);
