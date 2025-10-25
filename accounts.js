@@ -1,3 +1,13 @@
+// ===============================
+// ⚙️ TEST/MOCK CONFIGURATION
+// ===============================
+const TEST_MODE_ENABLED = true; // Set to 'true' to test on single sheet, 'false' for production
+const TEST_ACCOUNT_NAME = "VN - Tran Van Giang"; // Specify which account to test with
+
+// ===============================
+// 📒 ACCOUNT MANAGER SCRIPT
+// ===============================
+
 const updateAllAccounts = () => {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const masterSheet = ss.getSheetByName("VN - Master Ledger");
@@ -23,8 +33,17 @@ const updateAllAccounts = () => {
       masterSheet.getColumnWidth(i + 1)
     );
   
-    // --- Loop through accounts ---
-    Object.entries(accountMap).forEach(([account, entries]) => {
+    // --- Loop through accounts (with test mode support) ---
+    const accountsToProcess = TEST_MODE_ENABLED 
+      ? Object.entries(accountMap).filter(([account]) => account === TEST_ACCOUNT_NAME)
+      : Object.entries(accountMap);
+    
+    if (TEST_MODE_ENABLED && accountsToProcess.length === 0) {
+      SpreadsheetApp.getUi().alert(`⚠️ Test Mode: Account '${TEST_ACCOUNT_NAME}' not found in master data.`);
+      return;
+    }
+    
+    accountsToProcess.forEach(([account, entries]) => {
       const cleanName = account.replace(/[\\\/\?\*\[\]]/g, " ");
       let targetSheet = ss.getSheetByName(cleanName);
       if (!targetSheet) targetSheet = ss.insertSheet(cleanName);
@@ -136,7 +155,10 @@ const updateAllAccounts = () => {
         .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
     });
   
-    SpreadsheetApp.getUi().alert("✅ All account sheets updated successfully!");
+    const successMessage = TEST_MODE_ENABLED 
+      ? `🧪 Test Mode: Account '${TEST_ACCOUNT_NAME}' updated successfully!`
+      : "✅ All account sheets updated successfully!";
+    SpreadsheetApp.getUi().alert(successMessage);
   };
   
   // ===============================
@@ -162,7 +184,16 @@ const updateAllAccounts = () => {
       accountMap[account].push(row);
     });
 
-    Object.keys(accountMap).forEach(account => {
+    const accountsToProcess = TEST_MODE_ENABLED 
+      ? Object.keys(accountMap).filter(account => account === TEST_ACCOUNT_NAME)
+      : Object.keys(accountMap);
+    
+    if (TEST_MODE_ENABLED && accountsToProcess.length === 0) {
+      SpreadsheetApp.getUi().alert(`⚠️ Test Mode: Account '${TEST_ACCOUNT_NAME}' not found in master data.`);
+      return;
+    }
+    
+    accountsToProcess.forEach(account => {
       const sheet = ss.getSheetByName(account);
       if (sheet) {
         const rows = accountMap[account];
@@ -189,7 +220,10 @@ const updateAllAccounts = () => {
       }
     });
 
-    SpreadsheetApp.getUi().alert("⚡ Quick update completed — existing account sheets refreshed!");
+    const successMessage = TEST_MODE_ENABLED 
+      ? `🧪 Test Mode: Quick update completed for '${TEST_ACCOUNT_NAME}'!`
+      : "⚡ Quick update completed — existing account sheets refreshed!";
+    SpreadsheetApp.getUi().alert(successMessage);
   };
 
   // ===============================
@@ -220,7 +254,16 @@ const updateAllAccounts = () => {
     });
 
     let updatedCount = 0;
-    Object.entries(accountMap).forEach(([account, entries]) => {
+    const accountsToProcess = TEST_MODE_ENABLED 
+      ? Object.entries(accountMap).filter(([account]) => account === TEST_ACCOUNT_NAME)
+      : Object.entries(accountMap);
+    
+    if (TEST_MODE_ENABLED && accountsToProcess.length === 0) {
+      SpreadsheetApp.getUi().alert(`⚠️ Test Mode: Account '${TEST_ACCOUNT_NAME}' not found in master data.`);
+      return;
+    }
+    
+    accountsToProcess.forEach(([account, entries]) => {
       const sheet = ss.getSheetByName(account);
       if (!sheet) return;
 
@@ -270,7 +313,10 @@ const updateAllAccounts = () => {
       }
     });
 
-    SpreadsheetApp.getUi().alert(`🚀 Smart update completed — ${updatedCount} new transactions added across all account sheets!`);
+    const successMessage = TEST_MODE_ENABLED 
+      ? `🧪 Test Mode: Smart update completed — ${updatedCount} new transactions added to '${TEST_ACCOUNT_NAME}'!`
+      : `🚀 Smart update completed — ${updatedCount} new transactions added across all account sheets!`;
+    SpreadsheetApp.getUi().alert(successMessage);
   };
 
   // --- Helper: Clean currency values ---
