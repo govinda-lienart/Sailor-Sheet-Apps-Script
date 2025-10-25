@@ -1,6 +1,6 @@
-// ===============================
+// ================================
 // ⚙️ TEST/MOCK CONFIGURATION
-// ===============================
+// ================================
 const TEST_MODE_ENABLED = true; // Set to 'true' to test on single sheet, 'false' for production
 const TEST_ACCOUNT_NAME = "VN - Tran Van Giang"; // Specify which account to test with
 
@@ -116,23 +116,30 @@ const updateAllAccounts = () => {
 
     const totalRow = sortedRows.length + 2;
     
+    // --- Add yellow separator row ---
+    targetSheet.getRange(totalRow, 1, 1, headers.length)
+      .setBackground("#FFF9C4") // Light yellow background
+      .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+    
+    const totalsStartRow = totalRow + 1;
+    
     // --- Create totals section exactly like your example ---
     // Labels row (dark blue background, white text) - ALIGNED UNDER CORRECT COLUMNS
-    targetSheet.getRange(totalRow, debitCol).setValue("Total Debit")
+    targetSheet.getRange(totalsStartRow, debitCol).setValue("Total Debit")
       .setBackground("#0b5394")
       .setFontColor("#ffffff")
       .setFontWeight("bold")
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle");
     
-    targetSheet.getRange(totalRow, creditCol).setValue("Total Credit")
+    targetSheet.getRange(totalsStartRow, creditCol).setValue("Total Credit")
       .setBackground("#0b5394")
       .setFontColor("#ffffff")
       .setFontWeight("bold")
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle");
     
-    targetSheet.getRange(totalRow, creditCol + 1).setValue("Remaining funds")
+    targetSheet.getRange(totalsStartRow, creditCol + 1).setValue("Remaining funds")
       .setBackground("#0b5394")
       .setFontColor("#ffffff")
       .setFontWeight("bold")
@@ -140,7 +147,7 @@ const updateAllAccounts = () => {
       .setVerticalAlignment("middle");
 
     // Values row with CORRECT COLORS - Green for Debit, Orange for Credit, Yellow for Remaining
-    const valuesRow = totalRow + 1;
+    const valuesRow = totalsStartRow + 1;
     targetSheet.getRange(valuesRow, debitCol).setValue(totalDebit)
       .setBackground("#d9ead3") // Light green for debit
       .setFontWeight("bold")
@@ -251,52 +258,61 @@ const quickUpdateAccounts = () => {
       sheet.getRange(2, 1, sheet.getLastRow(), lastCol).clearContent();
       sheet.getRange(2, 1, rows.length, lastCol).setValues(rows);
 
-      // --- Recompute totals with proper formatting ---
-      const totalDebit = rows.reduce((sum, r) => sum + cleanCurrency(r[debitCol]), 0);
-      const totalCredit = rows.reduce((sum, r) => sum + cleanCurrency(r[creditCol]), 0);
+      // --- Recompute totals with EXACT SAME APPROACH as full rebuild ---
+      const debitColFixed = 9; // Same as full rebuild
+      const creditColFixed = 10; // Same as full rebuild
+      const totalDebit = rows.reduce((sum, r) => sum + cleanCurrency(r[debitColFixed - 1]), 0);
+      const totalCredit = rows.reduce((sum, r) => sum + cleanCurrency(r[creditColFixed - 1]), 0);
       const totalRow = rows.length + 2;
       
-      // Labels row (dark blue background, white text)
-      sheet.getRange(totalRow, debitCol - 1).setValue("Total Debit")
+      // --- Add yellow separator row ---
+      sheet.getRange(totalRow, 1, 1, sheet.getLastColumn())
+        .setBackground("#FFF9C4") // Light yellow background
+        .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+      
+      const totalsStartRow = totalRow + 1;
+      
+      // Labels row (dark blue background, white text) - EXACT SAME as full rebuild
+      sheet.getRange(totalsStartRow, debitColFixed).setValue("Total Debit")
         .setBackground("#0b5394")
         .setFontColor("#ffffff")
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle");
       
-      sheet.getRange(totalRow, debitCol).setValue("Total Credit")
+      sheet.getRange(totalsStartRow, creditColFixed).setValue("Total Credit")
         .setBackground("#0b5394")
         .setFontColor("#ffffff")
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle");
       
-      sheet.getRange(totalRow, creditCol).setValue("Remaining funds")
+      sheet.getRange(totalsStartRow, creditColFixed + 1).setValue("Remaining funds")
         .setBackground("#0b5394")
         .setFontColor("#ffffff")
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle");
 
-      // Values row (light yellow background, black text)
-      const valuesRow = totalRow + 1;
-      sheet.getRange(valuesRow, debitCol - 1).setValue(totalDebit)
-        .setBackground("#FFF9C4")
+      // Values row with EXACT SAME COLORS as full rebuild
+      const valuesRow = totalsStartRow + 1;
+      sheet.getRange(valuesRow, debitColFixed).setValue(totalDebit)
+        .setBackground("#d9ead3") // Light green for debit
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
       
-      sheet.getRange(valuesRow, debitCol).setValue(totalCredit)
-        .setBackground("#FFF9C4")
+      sheet.getRange(valuesRow, creditColFixed).setValue(totalCredit)
+        .setBackground("#fce5cd") // Light orange for credit
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
       
       const remainingFunds = totalCredit - totalDebit;
-      sheet.getRange(valuesRow, creditCol).setValue(remainingFunds)
-        .setBackground("#FFF9C4")
+      sheet.getRange(valuesRow, creditColFixed + 1).setValue(remainingFunds)
+        .setBackground("#FFF9C4") // Light yellow for remaining
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
@@ -380,22 +396,29 @@ const smartUpdateAccounts = () => {
       const totalCredit = dataRows.reduce((sum, r) => sum + cleanCurrency(r[creditCol]), 0);
       const totalRow = dataRows.length + 2;
       
+      // --- Add yellow separator row ---
+      sheet.getRange(totalRow, 1, 1, sheet.getLastColumn())
+        .setBackground("#FFF9C4") // Light yellow background
+        .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+      
+      const totalsStartRow = totalRow + 1;
+      
       // Labels row (dark blue background, white text) - ALIGNED UNDER CORRECT COLUMNS
-      sheet.getRange(totalRow, debitCol).setValue("Total Debit")
+      sheet.getRange(totalsStartRow, debitCol).setValue("Total Debit")
         .setBackground("#0b5394")
         .setFontColor("#ffffff")
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle");
       
-      sheet.getRange(totalRow, creditCol).setValue("Total Credit")
+      sheet.getRange(totalsStartRow, creditCol).setValue("Total Credit")
         .setBackground("#0b5394")
         .setFontColor("#ffffff")
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle");
       
-      sheet.getRange(totalRow, creditCol + 1).setValue("Remaining funds")
+      sheet.getRange(totalsStartRow, creditCol + 1).setValue("Remaining funds")
         .setBackground("#0b5394")
         .setFontColor("#ffffff")
         .setFontWeight("bold")
@@ -403,7 +426,7 @@ const smartUpdateAccounts = () => {
         .setVerticalAlignment("middle");
 
       // Values row with CORRECT COLORS - Green for Debit, Orange for Credit, Yellow for Remaining
-      const valuesRow = totalRow + 1;
+      const valuesRow = totalsStartRow + 1;
       sheet.getRange(valuesRow, debitCol).setValue(totalDebit)
         .setBackground("#d9ead3") // Light green for debit
         .setFontWeight("bold")
