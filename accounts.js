@@ -58,9 +58,10 @@ const updateAllAccounts = () => {
       .setFontFamily("Arial")
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle")
-      .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+      .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP) // Enable text wrapping
       .setBackground("#0b5394") // deep blue
-      .setFontColor("#ffffff");
+      .setFontColor("#ffffff")
+      .setBorder(true, true, true, true, true, true, "#ffffff", SpreadsheetApp.BorderStyle.SOLID); // White borders between columns
 
     // --- Match column widths ---
     columnWidths.forEach((width, i) => targetSheet.setColumnWidth(i + 1, width));
@@ -285,9 +286,10 @@ const rebuildCurrentAccount = () => {
     .setFontFamily("Arial")
     .setHorizontalAlignment("center")
     .setVerticalAlignment("middle")
-    .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP) // Enable text wrapping
     .setBackground("#0b5394")
-    .setFontColor("#ffffff");
+    .setFontColor("#ffffff")
+    .setBorder(true, true, true, true, true, true, "#ffffff", SpreadsheetApp.BorderStyle.SOLID); // White borders between columns
   
   // --- Match column widths from master ---
   const columnWidths = Array.from({ length: headers.length }, (_, i) =>
