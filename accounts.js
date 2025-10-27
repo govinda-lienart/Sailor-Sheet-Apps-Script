@@ -207,6 +207,19 @@ const updateAllAccounts = () => {
     targetSheet
       .getRange(1, 1, totalRowIndex, totalColIndex)
       .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+
+    // --- Add "Last update" timestamp at bottom right ---
+    const lastUpdateRow = totalRowIndex + 2;
+    const lastUpdateCol = totalColIndex;
+    const now = new Date();
+    const timestamp = `Last update: ${now.toLocaleString()}`;
+    
+    targetSheet.getRange(lastUpdateRow, lastUpdateCol).setValue(timestamp)
+      .setFontSize(9)
+      .setFontColor("#666666")
+      .setFontStyle("italic")
+      .setHorizontalAlignment("right")
+      .setVerticalAlignment("bottom");
   });
 
   const successMessage = TEST_MODE_ENABLED 
@@ -420,6 +433,19 @@ const rebuildCurrentAccount = () => {
   targetSheet
     .getRange(1, 1, lastRow, lastCol)
     .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+
+  // --- Add "Last update" timestamp at bottom right ---
+  const lastUpdateRow = lastRow + 2;
+  const lastUpdateCol = lastCol;
+  const now = new Date();
+  const timestamp = `Last update: ${now.toLocaleString()}`;
+  
+  targetSheet.getRange(lastUpdateRow, lastUpdateCol).setValue(timestamp)
+    .setFontSize(9)
+    .setFontColor("#666666")
+    .setFontStyle("italic")
+    .setHorizontalAlignment("right")
+    .setVerticalAlignment("bottom");
   
   SpreadsheetApp.getUi().alert(`✅ Account '${currentSheetName}' updated successfully!`);
 };
@@ -543,6 +569,19 @@ const quickUpdateAccounts = () => {
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
+
+      // --- Add "Last update" timestamp at bottom right ---
+      const lastUpdateRow = valuesRow + 2;
+      const lastUpdateCol = sheet.getLastColumn();
+      const now = new Date();
+      const timestamp = `Last update: ${now.toLocaleString()}`;
+      
+      sheet.getRange(lastUpdateRow, lastUpdateCol).setValue(timestamp)
+        .setFontSize(9)
+        .setFontColor("#666666")
+        .setFontStyle("italic")
+        .setHorizontalAlignment("right")
+        .setVerticalAlignment("bottom");
     }
   });
 
@@ -685,6 +724,19 @@ const smartUpdateAccounts = () => {
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
+
+      // --- Add "Last update" timestamp at bottom right ---
+      const lastUpdateRow = valuesRow + 2;
+      const lastUpdateCol = sheet.getLastColumn();
+      const now = new Date();
+      const timestamp = `Last update: ${now.toLocaleString()}`;
+      
+      sheet.getRange(lastUpdateRow, lastUpdateCol).setValue(timestamp)
+        .setFontSize(9)
+        .setFontColor("#666666")
+        .setFontStyle("italic")
+        .setHorizontalAlignment("right")
+        .setVerticalAlignment("bottom");
       
       updatedCount += newEntries.length;
     }
