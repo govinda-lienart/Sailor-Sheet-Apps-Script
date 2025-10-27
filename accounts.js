@@ -1,6 +1,6 @@
-// ================================
+// =================================
 // ⚙️ TEST/MOCK CONFIGURATION
-// ================================
+// =================================
 const TEST_MODE_ENABLED = false; // Set to 'true' to test on single sheet, 'false' for production
 const TEST_ACCOUNT_NAME = "VN - Nguyen Thi Thu Hien"; // Specify which account to test with
 
