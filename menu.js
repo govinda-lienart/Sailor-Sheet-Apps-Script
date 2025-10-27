@@ -7,10 +7,8 @@ function onOpen() {
   
   // Create the main consolidated menu
   ui.createMenu("📊 Financial Manager")
-    .addSubMenu(ui.createMenu("📒 Account Manager")
-      .addItem("🔁 Full Rebuild (All Accounts)", "updateAllAccounts")
-      .addItem("⚡ Quick Update (Existing Only)", "quickUpdateAccounts")
-      .addItem("🚀 Smart Update (New Data Only)", "smartUpdateAccounts"))
+            .addSubMenu(ui.createMenu("📒 Account Manager")
+                .addItem("🔁 Full Rebuild (All Accounts)", "updateAllAccounts"))
     .addSubMenu(ui.createMenu("💰 Fund Manager")
       .addItem("🔁 Full Rebuild (All Funds)", "updateAllFunds")
       .addItem("⚡ Quick Update (Existing Funds)", "quickUpdateFunds"))

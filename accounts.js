@@ -2,7 +2,7 @@
 // ⚙️ TEST/MOCK CONFIGURATION
 // ================================
 const TEST_MODE_ENABLED = true; // Set to 'true' to test on single sheet, 'false' for production
-const TEST_ACCOUNT_NAME = "VN - Tran Van Giang"; // Specify which account to test with
+const TEST_ACCOUNT_NAME = "VN - Nguyen Thi Thu Hien"; // Specify which account to test with
 
 // ===============================
 // 📒 ACCOUNT MANAGER SCRIPT
@@ -105,12 +105,18 @@ const updateAllAccounts = () => {
       });
     });
 
-    // --- Format date column (B) ---
-    targetSheet.getRange(2, 2, sortedRows.length, 1).setNumberFormat("dd/mm/yy");
-
-    // --- Compute totals (Debit = I, Credit = J) ---
+    // --- Define column positions first ---
     const debitCol = 9;
     const creditCol = 10;
+    
+    // --- Format date column (B) ---
+    targetSheet.getRange(2, 2, sortedRows.length, 1).setNumberFormat("dd/mm/yy");
+    
+    // --- Format Debit and Credit columns with thousands separators ---
+    targetSheet.getRange(2, debitCol, sortedRows.length, 1).setNumberFormat("#,##0");
+    targetSheet.getRange(2, creditCol, sortedRows.length, 1).setNumberFormat("#,##0");
+
+    // --- Compute totals (Debit = I, Credit = J) ---
     const totalDebit = sortedRows.reduce((sum, r) => sum + cleanCurrency(r[debitCol - 1]), 0);
     const totalCredit = sortedRows.reduce((sum, r) => sum + cleanCurrency(r[creditCol - 1]), 0);
 
@@ -162,7 +168,7 @@ const updateAllAccounts = () => {
       .setVerticalAlignment("middle")
       .setNumberFormat("#,##0");
     
-    const remainingFunds = totalCredit - totalDebit;
+    const remainingFunds = totalDebit - totalCredit; // Debit (money in) - Credit (expenses) = Remaining
     targetSheet.getRange(valuesRow, creditCol + 1).setValue(remainingFunds)
       .setBackground("#FFF9C4") // Light yellow for remaining
       .setFontWeight("bold")
@@ -255,8 +261,19 @@ const quickUpdateAccounts = () => {
       });
       
       const lastCol = sheet.getLastColumn();
-      sheet.getRange(2, 1, sheet.getLastRow(), lastCol).clearContent();
+      const lastRow = sheet.getLastRow();
+      
+      // --- Clear ALL content from row 2 to the end (including all totals sections) ---
+      if (lastRow > 1) {
+        sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+      }
+      
+      // --- Write new data ---
       sheet.getRange(2, 1, rows.length, lastCol).setValues(rows);
+      
+      // --- Format Debit and Credit columns with thousands separators ---
+      sheet.getRange(2, debitColFixed, rows.length, 1).setNumberFormat("#,##0");
+      sheet.getRange(2, creditColFixed, rows.length, 1).setNumberFormat("#,##0");
 
       // --- Recompute totals with EXACT SAME APPROACH as full rebuild ---
       const debitColFixed = 9; // Same as full rebuild
@@ -310,7 +327,7 @@ const quickUpdateAccounts = () => {
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
       
-      const remainingFunds = totalCredit - totalDebit;
+      const remainingFunds = totalDebit - totalCredit; // Debit (money in) - Credit (expenses) = Remaining
       sheet.getRange(valuesRow, creditColFixed + 1).setValue(remainingFunds)
         .setBackground("#FFF9C4") // Light yellow for remaining
         .setFontWeight("bold")
@@ -388,10 +405,21 @@ const smartUpdateAccounts = () => {
         return dateA - dateB;
       });
       
-      // Rewrite the sorted data
-      sheet.getRange(2, 1, dataRows.length, headers.length).setValues(dataRows);
-      
-      // Update totals with proper formatting
+        // Clear existing totals section first (from data end to sheet end)
+        const dataEndRow = dataRows.length + 1;
+        const sheetLastRow = sheet.getLastRow();
+        if (sheetLastRow > dataEndRow) {
+          sheet.getRange(dataEndRow + 1, 1, sheetLastRow - dataEndRow, sheet.getLastColumn()).clearContent();
+        }
+        
+        // Rewrite the sorted data
+        sheet.getRange(2, 1, dataRows.length, headers.length).setValues(dataRows);
+        
+        // --- Format Debit and Credit columns with thousands separators ---
+        sheet.getRange(2, debitCol, dataRows.length, 1).setNumberFormat("#,##0");
+        sheet.getRange(2, creditCol, dataRows.length, 1).setNumberFormat("#,##0");
+        
+        // Update totals with proper formatting
       const totalDebit = dataRows.reduce((sum, r) => sum + cleanCurrency(r[debitCol]), 0);
       const totalCredit = dataRows.reduce((sum, r) => sum + cleanCurrency(r[creditCol]), 0);
       const totalRow = dataRows.length + 2;
@@ -441,7 +469,7 @@ const smartUpdateAccounts = () => {
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
       
-      const remainingFunds = totalCredit - totalDebit;
+      const remainingFunds = totalDebit - totalCredit; // Debit (money in) - Credit (expenses) = Remaining
       sheet.getRange(valuesRow, creditCol + 1).setValue(remainingFunds)
         .setBackground("#FFF9C4") // Light yellow for remaining
         .setFontWeight("bold")
