@@ -1,7 +1,7 @@
 // ================================
 // ⚙️ TEST/MOCK CONFIGURATION
 // ================================
-const TEST_MODE_ENABLED = true; // Set to 'true' to test on single sheet, 'false' for production
+const TEST_MODE_ENABLED = false; // Set to 'true' to test on single sheet, 'false' for production
 const TEST_ACCOUNT_NAME = "VN - Nguyen Thi Thu Hien"; // Specify which account to test with
 
 // ===============================
@@ -213,6 +213,215 @@ const updateAllAccounts = () => {
     ? `🧪 Test Mode: Account '${TEST_ACCOUNT_NAME}' updated successfully!`
     : "✅ All account sheets updated successfully!";
   SpreadsheetApp.getUi().alert(successMessage);
+};
+
+// ===============================
+// 🎯 REBUILD CURRENT ACCOUNT — Update only the sheet you're currently viewing
+// ===============================
+const rebuildCurrentAccount = () => {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const currentSheet = ss.getActiveSheet();
+  const currentSheetName = currentSheet.getName();
+  
+  // Skip if trying to rebuild the master ledger or summary sheets
+  if (currentSheetName === "VN - Master Ledger" || currentSheetName === "Summary") {
+    SpreadsheetApp.getUi().alert("⚠️ Cannot rebuild this sheet. Please open an account sheet and try again.");
+    return;
+  }
+  
+  const masterSheet = ss.getSheetByName("VN - Master Ledger");
+  if (!masterSheet) {
+    SpreadsheetApp.getUi().alert("❌ 'VN - Master Ledger' sheet not found.");
+    return;
+  }
+  
+  const data = masterSheet.getDataRange().getValues();
+  const richData = masterSheet.getDataRange().getRichTextValues();
+  const headers = data[0];
+  const accountCol = headers.indexOf("Account");
+  
+  if (accountCol === -1) {
+    throw new Error("No 'Account' column found in VN - Master Ledger");
+  }
+  
+  // --- Find all rows for this account ---
+  const accountEntries = [];
+  data.slice(1).forEach((row, i) => {
+    const account = row[accountCol];
+    // Match by exact name or by cleaned name (handle special characters)
+    if (account && (account === currentSheetName || account.replace(/[\\\/\?\*\[\]]/g, " ") === currentSheetName)) {
+      accountEntries.push({ row, rich: richData[i + 1] });
+    }
+  });
+  
+  if (accountEntries.length === 0) {
+    SpreadsheetApp.getUi().alert(`⚠️ No data found for account '${currentSheetName}' in the master ledger.`);
+    return;
+  }
+  
+  // --- Clear and rebuild the sheet ---
+  const targetSheet = currentSheet;
+  targetSheet.clear();
+  
+  // --- Header row ---
+  targetSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  const headerRangeTarget = targetSheet.getRange(1, 1, 1, headers.length);
+  headerRangeTarget
+    .setFontSize(12)
+    .setFontWeight("bold")
+    .setFontFamily("Arial")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle")
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+    .setBackground("#0b5394")
+    .setFontColor("#ffffff");
+  
+  // --- Match column widths from master ---
+  const columnWidths = Array.from({ length: headers.length }, (_, i) =>
+    masterSheet.getColumnWidth(i + 1)
+  );
+  columnWidths.forEach((width, i) => targetSheet.setColumnWidth(i + 1, width));
+  
+  // --- Write data (sorted by date) ---
+  const rows = accountEntries.map(e => e.row);
+  const richRows = accountEntries.map(e => e.rich);
+  
+  // Sort by date column (column B - dd/mm/YY)
+  const dateCol = 1;
+  const sortedIndices = rows.map((row, index) => ({ row, rich: richRows[index], originalIndex: index }))
+    .sort((a, b) => {
+      const dateA = new Date(a.row[dateCol]);
+      const dateB = new Date(b.row[dateCol]);
+      return dateA - dateB; // Oldest to newest
+    });
+  
+  const sortedRows = sortedIndices.map(item => item.row);
+  const sortedRich = sortedIndices.map(item => item.rich);
+  
+  targetSheet.getRange(2, 1, sortedRows.length, headers.length).setValues(sortedRows);
+  
+  // --- Center + style data ---
+  targetSheet.getRange(2, 1, sortedRows.length, headers.length)
+    .setFontSize(11)
+    .setFontFamily("Arial")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle")
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  
+  // --- Reapply hyperlinks ---
+  sortedRich.forEach((richRow, rIdx) => {
+    richRow.forEach((rich, cIdx) => {
+      if (rich?.getLinkUrl()) {
+        const richText = SpreadsheetApp.newRichTextValue()
+          .setText(rich.getText())
+          .setLinkUrl(rich.getLinkUrl())
+          .build();
+        targetSheet.getRange(rIdx + 2, cIdx + 1).setRichTextValue(richText);
+      }
+    });
+  });
+  
+  // --- Define column positions ---
+  const debitCol = 9;
+  const creditCol = 10;
+  
+  // --- Format date column (B) ---
+  targetSheet.getRange(2, 2, sortedRows.length, 1).setNumberFormat("dd/mm/yy");
+  
+  // --- Format Debit and Credit columns ---
+  targetSheet.getRange(2, debitCol, sortedRows.length, 1).setNumberFormat("#,##0");
+  targetSheet.getRange(2, creditCol, sortedRows.length, 1).setNumberFormat("#,##0");
+  
+  // --- Compute totals ---
+  const totalDebit = sortedRows.reduce((sum, r) => sum + cleanCurrency(r[debitCol - 1]), 0);
+  const totalCredit = sortedRows.reduce((sum, r) => sum + cleanCurrency(r[creditCol - 1]), 0);
+  const totalRow = sortedRows.length + 2;
+  
+  // --- Add yellow separator row ---
+  targetSheet.getRange(totalRow, 1, 1, headers.length)
+    .setBackground("#FFF9C4")
+    .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+  
+  const totalsStartRow = totalRow + 1;
+  
+  // Labels row
+  targetSheet.getRange(totalsStartRow, debitCol).setValue("Total Debit")
+    .setBackground("#0b5394")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+  
+  targetSheet.getRange(totalsStartRow, creditCol).setValue("Total Credit")
+    .setBackground("#0b5394")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+  
+  targetSheet.getRange(totalsStartRow, creditCol + 1).setValue("Remaining funds")
+    .setBackground("#0b5394")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+  
+  // Values row
+  const valuesRow = totalsStartRow + 1;
+  targetSheet.getRange(valuesRow, debitCol).setValue(totalDebit)
+    .setBackground("#d9ead3")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle")
+    .setNumberFormat("#,##0");
+  
+  targetSheet.getRange(valuesRow, creditCol).setValue(totalCredit)
+    .setBackground("#fce5cd")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle")
+    .setNumberFormat("#,##0");
+  
+  const remainingFunds = totalDebit - totalCredit;
+  targetSheet.getRange(valuesRow, creditCol + 1).setValue(remainingFunds)
+    .setBackground("#FFF9C4")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle")
+    .setNumberFormat("#,##0");
+  
+  // --- Hide column N (if exists) ---
+  const lastCol = targetSheet.getLastColumn();
+  if (lastCol >= 14) targetSheet.hideColumns(14);
+  
+  // --- Set row height ---
+  const lastRow = targetSheet.getLastRow();
+  for (let r = 1; r <= lastRow; r++) {
+    targetSheet.setRowHeight(r, 21);
+  }
+  
+  // --- Format columns ---
+  targetSheet.getRange(2, debitCol, sortedRows.length, 1).setBackground("#d9ead3");
+  targetSheet.getRange(2, creditCol, sortedRows.length, 1).setBackground("#fce5cd");
+  
+  // Bill columns (yellow)
+  const billCols = ["O", "P", "Q"].map(c => c.charCodeAt(0) - 64);
+  billCols.forEach(col => {
+    if (col <= headers.length)
+      targetSheet.getRange(2, col, sortedRows.length, 1).setBackground("#fff2cc");
+  });
+  
+  // Transaction number column (blue)
+  targetSheet.getRange(2, 1, sortedRows.length, 1).setBackground("#c9daf8");
+  
+  // --- Gridlines and borders ---
+  targetSheet.setFrozenRows(1);
+  targetSheet.setHiddenGridlines(true);
+  targetSheet
+    .getRange(1, 1, lastRow, lastCol)
+    .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+  
+  SpreadsheetApp.getUi().alert(`✅ Account '${currentSheetName}' updated successfully!`);
 };
 
 // ===============================
