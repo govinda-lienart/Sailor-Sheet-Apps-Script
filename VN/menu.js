@@ -11,7 +11,8 @@ function onOpen() {
         .addItem("🔁 Full Rebuild (All Accounts)", "updateAllAccounts")
         .addItem("🔄 Update Current Sheet", "rebuildCurrentAccount"))
     .addSubMenu(ui.createMenu("💰 Fund Manager")
-      .addItem("🔁 Full Rebuild (All Funds)", "updateAllFunds"))
+      .addItem("🔁 Full Rebuild (All Funds)", "updateAllFunds")
+      .addItem("🔄 Update Current Sheet", "rebuildCurrentFund"))
     .addSubMenu(ui.createMenu("📘 Audit Tools")
       .addItem("📊 Update Comprehensive Summary", "createOrUpdateAuditSummary")
       .addItem("🔧 Simple Summary (No Hyperlinks)", "createSimpleSummary"))
@@ -33,7 +34,9 @@ function showHelp() {
   (Just open any account sheet and use this option - no code editing needed!)
 
 🔹 FUND MANAGER:
-• Full Rebuild: Creates/updates all fund sheets
+• Full Rebuild (All Funds): Creates/updates ALL fund sheets at once
+• Update Current Sheet: Rebuilds ONLY the fund sheet you're currently viewing
+  (Just open any fund sheet (starting with 'Fund - ') and use this option!)
 
 🔹 AUDIT TOOLS:
 • Update Summary Sheet: Creates/updates comprehensive audit summary reports
