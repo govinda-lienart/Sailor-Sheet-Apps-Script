@@ -83,28 +83,31 @@ function createOrUpdateAuditSummary() {
   
     // --- Header section ---
     const now = new Date();
-    summary.getRange("A1").setValue("THREE MONKEYS WILDLIFE CONSERVANCY");
-    summary.getRange("A2").setValue("COMPREHENSIVE FINANCIAL SUMMARY REPORT");
-    summary.getRange("A3").setValue("Generated on: " + now.toLocaleString());
+    const startCol = 2; // Start from column B for left margin (column A is empty)
+    summary.getRange(1, startCol).setValue("THREE MONKEYS WILDLIFE CONSERVANCY");
+    summary.getRange(2, startCol).setValue("COMPREHENSIVE FINANCIAL SUMMARY REPORT");
+    summary.getRange(3, startCol).setValue("Generated on: " + now.toLocaleString());
   
-    summary.getRange("A1").setFontSize(16).setFontWeight("bold").setFontColor("#0b5394");
-    summary.getRange("A2").setFontSize(13).setFontStyle("italic").setFontColor("#0b5394");
-    summary.getRange("A3").setFontSize(10).setFontColor("#666666");
+    summary.getRange(1, startCol).setFontSize(16).setFontWeight("bold").setFontColor("#0b5394");
+    summary.getRange(2, startCol).setFontSize(13).setFontStyle("italic").setFontColor("#0b5394");
+    summary.getRange(3, startCol).setFontSize(10).setFontColor("#666666");
   
     // Helper function to insert one formatted table
     // tableType: "fund" = funds (debit=orange, credit=green), "revenue_expense" = same, "asset" = asset accounts (debit=green, credit=orange)
-    function insertTable(title, startRow, data, isFundTable = false, tableType = "asset") {
+    function insertTable(title, startRow, data, isFundTable = false, tableType = "asset", startCol = 2) {
       const headers = isFundTable ? 
         ["Name", "Total Debit (VND)", "Total Credit (VND)", "Remaining (VND)"] :
         ["Account", "Total Debit (VND)", "Total Credit (VND)", "Remaining funds"];
       const tableStart = startRow + 1;
       const dataStart = tableStart + 1;
   
-      summary.getRange(startRow, 1).setValue(title)
-        .setFontWeight("bold").setFontSize(12).setFontColor("#0b5394");
+      if (title) {
+        summary.getRange(startRow, startCol).setValue(title)
+          .setFontWeight("bold").setFontSize(12).setFontColor("#0b5394");
+      }
   
       // Header row
-      summary.getRange(tableStart, 1, 1, headers.length).setValues([headers])
+      summary.getRange(tableStart, startCol, 1, headers.length).setValues([headers])
         .setFontWeight("bold")
         .setFontSize(11)
         .setFontColor("#ffffff")
@@ -114,20 +117,20 @@ function createOrUpdateAuditSummary() {
   
       // Data
       if (data.length > 0) {
-        summary.getRange(dataStart, 1, data.length, headers.length).setValues(data);
-        summary.getRange(dataStart, isFundTable ? 3 : 2, data.length, 3).setNumberFormat("#,##0");
-        summary.getRange(dataStart, 1, data.length, headers.length)
+        summary.getRange(dataStart, startCol, data.length, headers.length).setValues(data);
+        summary.getRange(dataStart, startCol + 1, data.length, 3).setNumberFormat("#,##0");
+        summary.getRange(dataStart, startCol, data.length, headers.length)
           .setFontSize(10)
           .setFontFamily("Arial")
           .setVerticalAlignment("middle");
         
         // Left-align account/name column, right-align number columns
-        summary.getRange(dataStart, 1, data.length, 1).setHorizontalAlignment("left"); // Account/Name column
-        summary.getRange(dataStart, 2, data.length, 3).setHorizontalAlignment("right"); // Number columns (Debit, Credit, Remaining)
+        summary.getRange(dataStart, startCol, data.length, 1).setHorizontalAlignment("left"); // Account/Name column
+        summary.getRange(dataStart, startCol + 1, data.length, 3).setHorizontalAlignment("right"); // Number columns (Debit, Credit, Remaining)
         
         // Color code Debit and Credit columns based on table type
-        const debitCol = isFundTable ? 2 : 2;
-        const creditCol = isFundTable ? 3 : 3;
+        const debitCol = startCol + 1; // Column C
+        const creditCol = startCol + 2; // Column D
         
         // For funds and revenue/expense: Debit=orange (expenses), Credit=green (revenues)
         // For asset accounts: Debit=green (money in), Credit=orange (money out)
@@ -145,7 +148,7 @@ function createOrUpdateAuditSummary() {
             const fundSheetName = "Fund - " + fundName;
             const fundSheet = ss.getSheetByName(fundSheetName);
             if (fundSheet) {
-              const cell = summary.getRange(dataStart + index, 1);
+              const cell = summary.getRange(dataStart + index, startCol);
               const richText = SpreadsheetApp.newRichTextValue()
                 .setText(fundName)
                 .setLinkUrl(`#gid=${fundSheet.getSheetId()}`)
@@ -154,9 +157,9 @@ function createOrUpdateAuditSummary() {
             }
           });
         } else {
-          // Add hyperlinks for account names (column A)
+          // Add hyperlinks for account names
           data.forEach((row, index) => {
-            const accountName = row[0]; // Account name is in column A
+            const accountName = row[0]; // Account name
             let accountSheet = ss.getSheetByName(accountName);
             
             // If exact name not found, try some common variations
@@ -175,7 +178,7 @@ function createOrUpdateAuditSummary() {
             }
             
             if (accountSheet) {
-              const cell = summary.getRange(dataStart + index, 1);
+              const cell = summary.getRange(dataStart + index, startCol);
               const richText = SpreadsheetApp.newRichTextValue()
                 .setText(accountName)
                 .setLinkUrl(`#gid=${accountSheet.getSheetId()}`)
@@ -201,16 +204,16 @@ function createOrUpdateAuditSummary() {
           [totalLabel, totalDebit, totalCredit, totalDiff] :
           [totalLabel, totalDebit, totalCredit, totalDiff];
           
-        summary.getRange(totalRow, 1, 1, headers.length).setValues([totalData]);
+        summary.getRange(totalRow, startCol, 1, headers.length).setValues([totalData]);
         // Note: Background and alignment will be set separately for label vs values
-        summary.getRange(totalRow, 1, 1, headers.length)
+        summary.getRange(totalRow, startCol, 1, headers.length)
           .setFontWeight("bold")
           .setVerticalAlignment("middle");
-        summary.getRange(totalRow, isFundTable ? 3 : 2, 1, 3).setNumberFormat("#,##0");
+        summary.getRange(totalRow, startCol + 1, 1, 3).setNumberFormat("#,##0");
         
         // Style TOTAL row matching screenshot:
         // First cell (label) gets dark blue background with white text
-        const totalLabelCell = summary.getRange(totalRow, 1, 1, 1);
+        const totalLabelCell = summary.getRange(totalRow, startCol, 1, 1);
         totalLabelCell.setBackground("#0b5394")
           .setFontColor("#ffffff")
           .setHorizontalAlignment("left"); // left-aligned as per screenshot
@@ -228,7 +231,7 @@ function createOrUpdateAuditSummary() {
   
         // Set borders matching screenshot exactly:
         // 1. Outer border - thick dark blue around entire table
-        const fullTableRange = summary.getRange(tableStart, 1, data.length + 1, headers.length);
+        const fullTableRange = summary.getRange(tableStart, startCol, data.length + 1, headers.length);
         fullTableRange.setBorder(
           true, true, true, true, // outer: top, left, bottom, right
           false, false, // no inner borders yet (will add separately)
@@ -237,26 +240,26 @@ function createOrUpdateAuditSummary() {
         );
         
         // 2. Thick dark blue separator line below header row
-        summary.getRange(tableStart + 1, 1, 1, headers.length)
+        summary.getRange(tableStart + 1, startCol, 1, headers.length)
           .setBorder(true, false, false, false, false, false, // top border only (thick blue)
             "#0b5394", SpreadsheetApp.BorderStyle.SOLID_THICK);
         
         // 3. Thick dark blue separator line above TOTAL/GRAND TOTAL row
-        summary.getRange(totalRow, 1, 1, headers.length)
+        summary.getRange(totalRow, startCol, 1, headers.length)
           .setBorder(true, false, false, false, false, false, // top border only (thick blue)
             "#0b5394", SpreadsheetApp.BorderStyle.SOLID_THICK);
         
         // 4. Thin light gray vertical lines in header row (between columns only)
-        summary.getRange(tableStart, 1, 1, headers.length)
+        summary.getRange(tableStart, startCol, 1, headers.length)
           .setBorder(false, false, false, false, true, false, // vertical internal only
             "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
         
         // 5. Thin light gray internal grid lines for data rows (both horizontal and vertical)
         if (data.length > 1) {
-          const dataCellsRange = summary.getRange(dataStart, 1, data.length - 1, headers.length);
+          const dataCellsRange = summary.getRange(dataStart, startCol, data.length - 1, headers.length);
           // Set horizontal lines between data rows
           for (let r = dataStart; r < totalRow - 1; r++) {
-            summary.getRange(r + 1, 1, 1, headers.length)
+            summary.getRange(r + 1, startCol, 1, headers.length)
               .setBorder(true, false, false, false, false, false, // top border (horizontal line)
                 "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
           }
@@ -269,18 +272,18 @@ function createOrUpdateAuditSummary() {
         }
         
         // 6. Thin light gray vertical lines in TOTAL row (between columns only)
-        summary.getRange(totalRow, 1, 1, headers.length)
+        summary.getRange(totalRow, startCol, 1, headers.length)
           .setBorder(false, false, false, false, true, false, // vertical internal only
             "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
         
         // Add horizontal line below the table for section separation
         const lineRow = totalRow + 1;
-        summary.getRange(lineRow, 1, 1, headers.length)
+        summary.getRange(lineRow, startCol, 1, headers.length)
           .setBorder(false, false, false, false, false, true, "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
   
         return totalRow + 2; // Next table starts after some spacing
       } else {
-        summary.getRange(tableStart + 1, 1).setValue("No data available.")
+        summary.getRange(tableStart + 1, startCol).setValue("No data available.")
           .setFontStyle("italic")
           .setFontColor("#888888");
         return tableStart + 3;
@@ -289,7 +292,7 @@ function createOrUpdateAuditSummary() {
   
     // --- Insert VN - Master Ledger section first ---
     let nextRow = 7;
-    summary.getRange(nextRow, 1).setValue("📋 VN - MASTER LEDGER")
+    summary.getRange(nextRow, startCol).setValue("📋 VN - MASTER LEDGER")
       .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
     nextRow += 2;
     
@@ -298,7 +301,7 @@ function createOrUpdateAuditSummary() {
     const masterDataStart = nextRow + 1;
     
     // Headers
-    summary.getRange(masterTableStart, 1, 1, 1).setValues([["Dataset"]])
+    summary.getRange(masterTableStart, startCol, 1, 1).setValues([["Dataset"]])
       .setFontWeight("bold")
       .setFontSize(11)
       .setFontColor("#ffffff")
@@ -307,7 +310,7 @@ function createOrUpdateAuditSummary() {
       .setVerticalAlignment("middle");
     
     // Data row - make the VN - Master Ledger text itself clickable
-    const masterSheetLink = summary.getRange(masterDataStart, 1);
+    const masterSheetLink = summary.getRange(masterDataStart, startCol);
     const masterRichText = SpreadsheetApp.newRichTextValue()
       .setText("VN - Master Ledger")
       .setLinkUrl(`#gid=${masterSheet.getSheetId()}`)
@@ -320,7 +323,7 @@ function createOrUpdateAuditSummary() {
       .setVerticalAlignment("middle");
     
     // Style the data row
-    summary.getRange(masterDataStart, 1, 1, 1)
+    summary.getRange(masterDataStart, startCol, 1, 1)
       .setFontSize(11)
       .setFontFamily("Arial")
       .setVerticalAlignment("middle")
@@ -328,42 +331,45 @@ function createOrUpdateAuditSummary() {
       .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
     
     // Border for the whole table
-    summary.getRange(masterTableStart, 1, 2, 1)
+    summary.getRange(masterTableStart, startCol, 2, 1)
       .setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
-    
-    // Set column width for better visibility
-    summary.setColumnWidth(1, 200);
     
     nextRow = masterDataStart + 3;
     
-    // --- Insert Fund Summary ---
-    console.log("Fund Data:", fundData); // Debug log
-    nextRow = insertTable("📊 FUND SUMMARY", nextRow, fundData, true, "fund");
-    
-    // Add spacing and section header with horizontal line separator
-    nextRow += 2;
-    summary.getRange(nextRow, 1, 1, 10)
-      .setBorder(false, false, false, false, false, true, "#b0b0b0", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    nextRow += 2;
-    summary.getRange(nextRow, 1).setValue("📊 ACCOUNTS SUMMARY")
+    // --- Insert Accounts Summary FIRST ---
+    summary.getRange(nextRow, startCol).setValue("📊 ACCOUNTS SUMMARY")
       .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
     nextRow += 2;
     
     // --- Insert Account Summary tables ---
     console.log("Expenses/Revenues:", expensesRevenues); // Debug log
-    nextRow = insertTable("I. Revenues & Expenses", nextRow, expensesRevenues, false, "revenue_expense");
-    nextRow = insertTable("II. Indovina Bank Accounts", nextRow, indovina, false, "asset");
-    nextRow = insertTable("III. Custodian Accounts", nextRow, custodians, false, "asset");
+    nextRow = insertTable("I. Revenues & Expenses", nextRow, expensesRevenues, false, "revenue_expense", startCol);
+    nextRow = insertTable("II. Indovina Bank Accounts", nextRow, indovina, false, "asset", startCol);
+    nextRow = insertTable("III. Custodian Accounts", nextRow, custodians, false, "asset", startCol);
+    
+    // Add spacing and section header with horizontal line separator before Fund Summary (only 2 rows total)
+    nextRow += 1; // First spacing row
+    summary.getRange(nextRow, startCol, 1, 10)
+      .setBorder(false, false, false, false, false, true, "#b0b0b0", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    nextRow += 1; // Second spacing row - Fund Summary heading goes here
+    
+    // --- Insert Fund Summary AFTER Accounts Summary ---
+    summary.getRange(nextRow, startCol).setValue("📊 FUND SUMMARY")
+      .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
+    nextRow += 2;
+    console.log("Fund Data:", fundData); // Debug log
+    nextRow = insertTable("", nextRow, fundData, true, "fund", startCol); // Empty title since we have separate heading
   
-    // Set proper column widths for all tables
-    summary.setColumnWidth(1, 200); // Name/Account column
-    summary.setColumnWidth(2, 150); // Debit column
-    summary.setColumnWidth(3, 150); // Credit column
-    summary.setColumnWidth(4, 150); // Remaining column
-    summary.setColumnWidth(5, 150); // Extra column for fund tables
+    // Set proper column widths for all tables (column A is empty margin, start from B)
+    summary.setColumnWidth(1, 50); // Left margin column A
+    summary.setColumnWidth(2, 200); // Name/Account column B
+    summary.setColumnWidth(3, 150); // Debit column C
+    summary.setColumnWidth(4, 150); // Credit column D
+    summary.setColumnWidth(5, 150); // Remaining column E
+    summary.setColumnWidth(6, 150); // Extra column
     
     summary.setRowHeights(1, nextRow + 3, 22);
-    summary.getRange("A1:A3").setHorizontalAlignment("left");
+    summary.getRange(1, startCol, 3, 1).setHorizontalAlignment("left");
   
     SpreadsheetApp.getUi().alert("✅ Comprehensive Summary sheet updated successfully!");
   }
