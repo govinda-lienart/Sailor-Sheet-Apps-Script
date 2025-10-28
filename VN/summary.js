@@ -119,8 +119,11 @@ function createOrUpdateAuditSummary() {
         summary.getRange(dataStart, 1, data.length, headers.length)
           .setFontSize(10)
           .setFontFamily("Arial")
-          .setVerticalAlignment("middle")
-          .setHorizontalAlignment("center");
+          .setVerticalAlignment("middle");
+        
+        // Left-align account/name column, right-align number columns
+        summary.getRange(dataStart, 1, data.length, 1).setHorizontalAlignment("left"); // Account/Name column
+        summary.getRange(dataStart, 2, data.length, 3).setHorizontalAlignment("right"); // Number columns (Debit, Credit, Remaining)
         
         // Color code Debit and Credit columns based on table type
         const debitCol = isFundTable ? 2 : 2;
@@ -199,20 +202,76 @@ function createOrUpdateAuditSummary() {
           [totalLabel, totalDebit, totalCredit, totalDiff];
           
         summary.getRange(totalRow, 1, 1, headers.length).setValues([totalData]);
+        // Note: Background and alignment will be set separately for label vs values
         summary.getRange(totalRow, 1, 1, headers.length)
-          .setBackground("#FFF9C4")
           .setFontWeight("bold")
-          .setHorizontalAlignment("center")
           .setVerticalAlignment("middle");
         summary.getRange(totalRow, isFundTable ? 3 : 2, 1, 3).setNumberFormat("#,##0");
         
-        // Color the debit and credit columns in the TOTAL row too
-        summary.getRange(totalRow, debitCol, 1, 1).setBackground(debitColor);
-        summary.getRange(totalRow, creditCol, 1, 1).setBackground(creditColor);
+        // Style TOTAL row matching screenshot:
+        // First cell (label) gets dark blue background with white text
+        const totalLabelCell = summary.getRange(totalRow, 1, 1, 1);
+        totalLabelCell.setBackground("#0b5394")
+          .setFontColor("#ffffff")
+          .setHorizontalAlignment("left"); // left-aligned as per screenshot
+        
+        // Value cells (Debit, Credit, Remaining) get light yellow/golden background and right alignment
+        summary.getRange(totalRow, debitCol, 1, 1)
+          .setBackground("#FFF9C4")
+          .setHorizontalAlignment("right"); // right-aligned for numbers
+        summary.getRange(totalRow, creditCol, 1, 1)
+          .setBackground("#FFF9C4")
+          .setHorizontalAlignment("right"); // right-aligned for numbers
+        summary.getRange(totalRow, creditCol + 1, 1, 1)
+          .setBackground("#FFF9C4")
+          .setHorizontalAlignment("right"); // right-aligned for numbers
   
-        // Border
-        const fullRange = summary.getRange(tableStart, 1, data.length + 1, headers.length);
-        fullRange.setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+        // Set borders matching screenshot exactly:
+        // 1. Outer border - thick dark blue around entire table
+        const fullTableRange = summary.getRange(tableStart, 1, data.length + 1, headers.length);
+        fullTableRange.setBorder(
+          true, true, true, true, // outer: top, left, bottom, right
+          false, false, // no inner borders yet (will add separately)
+          "#0b5394", // dark blue
+          SpreadsheetApp.BorderStyle.SOLID_THICK
+        );
+        
+        // 2. Thick dark blue separator line below header row
+        summary.getRange(tableStart + 1, 1, 1, headers.length)
+          .setBorder(true, false, false, false, false, false, // top border only (thick blue)
+            "#0b5394", SpreadsheetApp.BorderStyle.SOLID_THICK);
+        
+        // 3. Thick dark blue separator line above TOTAL/GRAND TOTAL row
+        summary.getRange(totalRow, 1, 1, headers.length)
+          .setBorder(true, false, false, false, false, false, // top border only (thick blue)
+            "#0b5394", SpreadsheetApp.BorderStyle.SOLID_THICK);
+        
+        // 4. Thin light gray vertical lines in header row (between columns only)
+        summary.getRange(tableStart, 1, 1, headers.length)
+          .setBorder(false, false, false, false, true, false, // vertical internal only
+            "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
+        
+        // 5. Thin light gray internal grid lines for data rows (both horizontal and vertical)
+        if (data.length > 1) {
+          const dataCellsRange = summary.getRange(dataStart, 1, data.length - 1, headers.length);
+          // Set horizontal lines between data rows
+          for (let r = dataStart; r < totalRow - 1; r++) {
+            summary.getRange(r + 1, 1, 1, headers.length)
+              .setBorder(true, false, false, false, false, false, // top border (horizontal line)
+                "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
+          }
+          // Set vertical lines between columns for all data rows
+          dataCellsRange.setBorder(
+            false, false, false, false,
+            true, false, // vertical internal only
+            "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID
+          );
+        }
+        
+        // 6. Thin light gray vertical lines in TOTAL row (between columns only)
+        summary.getRange(totalRow, 1, 1, headers.length)
+          .setBorder(false, false, false, false, true, false, // vertical internal only
+            "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
         
         // Add horizontal line below the table for section separation
         const lineRow = totalRow + 1;
