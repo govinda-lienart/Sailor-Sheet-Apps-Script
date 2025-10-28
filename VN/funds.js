@@ -166,7 +166,7 @@ const updateAllFunds = () => {
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
       
-      const remainingFunds = totalDebit - totalCredit; // Debit (money in) - Credit (expenses) = Remaining
+      const remainingFunds = totalCredit - totalDebit; // Credit (revenues/money in) - Debit (expenses/money out) = Remaining
       targetSheet.getRange(valuesRow, creditCol + 1).setValue(remainingFunds)
         .setBackground("#FFF9C4") // Light yellow for remaining
         .setFontWeight("bold")
@@ -265,8 +265,9 @@ const updateAllFunds = () => {
       throw new Error("No 'Account' column found in VN - Master Ledger");
     }
     
-    // Extract fund name from sheet name (remove "Fund - " prefix)
-    const fundName = currentSheetName.replace(/^Fund - /, "");
+    // Extract fund name from sheet name (remove "Fund - " prefix and trim)
+    const fundName = currentSheetName.replace(/^Fund - /, "").trim();
+    const cleanFundNameFromSheet = fundName.replace(/[\\\/\?\*\[\]]/g, " ");
     
     // --- Filter: Only include rows where Account is "VN - Expenses" or "VN - Revenues" ---
     const allowedAccounts = ["VN - Expenses", "VN - Revenues"];
@@ -279,17 +280,34 @@ const updateAllFunds = () => {
       
       // Only process if account is allowed, fund matches, and fund exists
       if (!fund || !account) return;
-      if (!allowedAccounts.includes(account)) return;
       
-      // Match by exact fund name or by cleaned name (handle special characters)
-      const cleanFundName = fund.replace(/[\\\/\?\*\[\]]/g, " ");
-      if (fund === fundName || cleanFundName === fundName) {
+      // Normalize account name for comparison (trim and match)
+      const accountStr = String(account).trim();
+      if (!allowedAccounts.includes(accountStr)) return;
+      
+      // Convert both to strings and clean for comparison
+      const fundStr = String(fund).trim();
+      const cleanFundFromData = fundStr.replace(/[\\\/\?\*\[\]]/g, " ");
+      
+      // Match by exact fund name, cleaned name, or cleaned sheet name
+      if (fundStr === fundName || 
+          cleanFundFromData === fundName || 
+          fundStr === cleanFundNameFromSheet ||
+          cleanFundFromData === cleanFundNameFromSheet) {
         fundEntries.push({ row, rich: richData[i + 1] });
       }
     });
     
     if (fundEntries.length === 0) {
-      SpreadsheetApp.getUi().alert(`⚠️ No data found for fund '${fundName}' in the master ledger (filtered by VN - Expenses and VN - Revenues accounts).`);
+      // Debug: Show what we're looking for
+      const debugMsg = `⚠️ No data found for fund '${fundName}' in the master ledger.\n\n` +
+        `Sheet name: ${currentSheetName}\n` +
+        `Extracted fund name: '${fundName}'\n` +
+        `Looking for accounts: VN - Expenses, VN - Revenues\n\n` +
+        `Please verify:\n` +
+        `1. The fund name exists in the "Funds" column\n` +
+        `2. The account is exactly "VN - Expenses" or "VN - Revenues"`;
+      SpreadsheetApp.getUi().alert(debugMsg);
       return;
     }
     
@@ -417,7 +435,7 @@ const updateAllFunds = () => {
       .setVerticalAlignment("middle")
       .setNumberFormat("#,##0");
     
-    const remainingFunds = totalDebit - totalCredit;
+    const remainingFunds = totalCredit - totalDebit; // Credit (revenues/money in) - Debit (expenses/money out) = Remaining
     targetSheet.getRange(valuesRow, creditCol + 1).setValue(remainingFunds)
       .setBackground("#FFF9C4")
       .setFontWeight("bold")
