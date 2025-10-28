@@ -150,17 +150,17 @@ const updateAllFunds = () => {
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle");
   
-      // Values row with CORRECT COLORS - Green for Debit, Orange for Credit, Yellow for Remaining
+      // Values row with CORRECT COLORS - Orange for Debit (expenses), Green for Credit (revenues), Yellow for Remaining
       const valuesRow = totalsStartRow + 1;
       targetSheet.getRange(valuesRow, debitCol).setValue(totalDebit)
-        .setBackground("#d9ead3") // Light green for debit
+        .setBackground("#fce5cd") // Light orange for debit (expenses/money out)
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
         .setNumberFormat("#,##0");
       
       targetSheet.getRange(valuesRow, creditCol).setValue(totalCredit)
-        .setBackground("#fce5cd") // Light orange for credit
+        .setBackground("#d9ead3") // Light green for credit (revenues/money in)
         .setFontWeight("bold")
         .setHorizontalAlignment("center")
         .setVerticalAlignment("middle")
@@ -183,9 +183,9 @@ const updateAllFunds = () => {
         targetSheet.setRowHeight(r, 21)
       );
   
-      // --- Format Debit/Credit columns ---
-      targetSheet.getRange(2, debitCol, sortedRows.length, 1).setBackground("#d9ead3"); // green tint
-      targetSheet.getRange(2, creditCol, sortedRows.length, 1).setBackground("#fce5cd"); // orange tint
+      // --- Format Debit/Credit columns (reversed colors for funds: Debit=orange, Credit=green) ---
+      targetSheet.getRange(2, debitCol, sortedRows.length, 1).setBackground("#fce5cd"); // orange tint for debit (expenses)
+      targetSheet.getRange(2, creditCol, sortedRows.length, 1).setBackground("#d9ead3"); // green tint for credit (revenues)
   
       // --- Format Bill/Red Bill/Doc columns (yellow) ---
       const billCols = ["O", "P", "Q"].map(c => c.charCodeAt(0) - 64);
@@ -401,17 +401,17 @@ const updateAllFunds = () => {
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle");
     
-    // Values row
+    // Values row (reversed colors for funds: Debit=orange, Credit=green)
     const valuesRow = totalsStartRow + 1;
     targetSheet.getRange(valuesRow, debitCol).setValue(totalDebit)
-      .setBackground("#d9ead3")
+      .setBackground("#fce5cd") // Light orange for debit (expenses/money out)
       .setFontWeight("bold")
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle")
       .setNumberFormat("#,##0");
     
     targetSheet.getRange(valuesRow, creditCol).setValue(totalCredit)
-      .setBackground("#fce5cd")
+      .setBackground("#d9ead3") // Light green for credit (revenues/money in)
       .setFontWeight("bold")
       .setHorizontalAlignment("center")
       .setVerticalAlignment("middle")
@@ -456,9 +456,9 @@ const updateAllFunds = () => {
       targetSheet.setRowHeight(r, 21);
     }
     
-    // --- Format columns ---
-    targetSheet.getRange(2, debitCol, sortedRows.length, 1).setBackground("#d9ead3");
-    targetSheet.getRange(2, creditCol, sortedRows.length, 1).setBackground("#fce5cd");
+    // --- Format columns (reversed colors for funds: Debit=orange, Credit=green) ---
+    targetSheet.getRange(2, debitCol, sortedRows.length, 1).setBackground("#fce5cd"); // orange tint for debit (expenses)
+    targetSheet.getRange(2, creditCol, sortedRows.length, 1).setBackground("#d9ead3"); // green tint for credit (revenues)
     
     // Bill columns (yellow)
     const billCols = ["O", "P", "Q"].map(c => c.charCodeAt(0) - 64);
