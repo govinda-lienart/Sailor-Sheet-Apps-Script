@@ -92,7 +92,8 @@ function createOrUpdateAuditSummary() {
     summary.getRange("A3").setFontSize(10).setFontColor("#666666");
   
     // Helper function to insert one formatted table
-    function insertTable(title, startRow, data, isFundTable = false) {
+    // tableType: "fund" = funds (debit=orange, credit=green), "revenue_expense" = same, "asset" = asset accounts (debit=green, credit=orange)
+    function insertTable(title, startRow, data, isFundTable = false, tableType = "asset") {
       const headers = isFundTable ? 
         ["Name", "Total Debit (VND)", "Total Credit (VND)", "Remaining (VND)"] :
         ["Account", "Total Debit (VND)", "Total Credit (VND)", "Remaining funds"];
@@ -120,6 +121,18 @@ function createOrUpdateAuditSummary() {
           .setFontFamily("Arial")
           .setVerticalAlignment("middle")
           .setHorizontalAlignment("center");
+        
+        // Color code Debit and Credit columns based on table type
+        const debitCol = isFundTable ? 2 : 2;
+        const creditCol = isFundTable ? 3 : 3;
+        
+        // For funds and revenue/expense: Debit=orange (expenses), Credit=green (revenues)
+        // For asset accounts: Debit=green (money in), Credit=orange (money out)
+        const debitColor = (tableType === "fund" || tableType === "revenue_expense") ? "#fce5cd" : "#d9ead3";
+        const creditColor = (tableType === "fund" || tableType === "revenue_expense") ? "#d9ead3" : "#fce5cd";
+        
+        summary.getRange(dataStart, debitCol, data.length, 1).setBackground(debitColor);
+        summary.getRange(dataStart, creditCol, data.length, 1).setBackground(creditColor);
         
         // Add hyperlinks using the working method from the older script
         if (isFundTable) {
@@ -192,10 +205,19 @@ function createOrUpdateAuditSummary() {
           .setHorizontalAlignment("center")
           .setVerticalAlignment("middle");
         summary.getRange(totalRow, isFundTable ? 3 : 2, 1, 3).setNumberFormat("#,##0");
+        
+        // Color the debit and credit columns in the TOTAL row too
+        summary.getRange(totalRow, debitCol, 1, 1).setBackground(debitColor);
+        summary.getRange(totalRow, creditCol, 1, 1).setBackground(creditColor);
   
         // Border
         const fullRange = summary.getRange(tableStart, 1, data.length + 1, headers.length);
         fullRange.setBorder(true, true, true, true, true, true, "#bfbfbf", SpreadsheetApp.BorderStyle.SOLID);
+        
+        // Add horizontal line below the table for section separation
+        const lineRow = totalRow + 1;
+        summary.getRange(lineRow, 1, 1, headers.length)
+          .setBorder(false, false, false, false, false, true, "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
   
         return totalRow + 2; // Next table starts after some spacing
       } else {
@@ -257,31 +279,22 @@ function createOrUpdateAuditSummary() {
     
     // --- Insert Fund Summary ---
     console.log("Fund Data:", fundData); // Debug log
-    nextRow = insertTable("📊 FUND SUMMARY", nextRow, fundData, true);
+    nextRow = insertTable("📊 FUND SUMMARY", nextRow, fundData, true, "fund");
     
-    // Add spacing and section header
-    nextRow += 3;
+    // Add spacing and section header with horizontal line separator
+    nextRow += 2;
+    summary.getRange(nextRow, 1, 1, 10)
+      .setBorder(false, false, false, false, false, true, "#b0b0b0", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    nextRow += 2;
     summary.getRange(nextRow, 1).setValue("📊 ACCOUNTS SUMMARY")
       .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
     nextRow += 2;
     
     // --- Insert Account Summary tables ---
     console.log("Expenses/Revenues:", expensesRevenues); // Debug log
-    nextRow = insertTable("I. Revenues & Expenses", nextRow, expensesRevenues);
-    nextRow = insertTable("II. Indovina Bank Accounts", nextRow, indovina);
-    nextRow = insertTable("III. Custodian Accounts", nextRow, custodians);
-  
-    // --- Add explanatory note below custodian section ---
-    summary.getRange(nextRow + 1, 1).setValue(
-      "Note: The above Custodian Accounts represent project funds temporarily advanced to team members " +
-      "for field operations and related expenses. Balances include both cash and bank-based holdings, " +
-      "as recorded in the VN - Master Ledger."
-    )
-      .setFontSize(9)
-      .setFontStyle("italic")
-      .setFontColor("#777777")
-      .setWrap(true)
-      .setBackground("#f5f5f5");
+    nextRow = insertTable("I. Revenues & Expenses", nextRow, expensesRevenues, false, "revenue_expense");
+    nextRow = insertTable("II. Indovina Bank Accounts", nextRow, indovina, false, "asset");
+    nextRow = insertTable("III. Custodian Accounts", nextRow, custodians, false, "asset");
   
     // Set proper column widths for all tables
     summary.setColumnWidth(1, 200); // Name/Account column
