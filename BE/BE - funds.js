@@ -40,8 +40,10 @@ const updateAllFunds = () => {
   
     // --- Loop through funds ---
     Object.entries(fundMap).forEach(([fund, entries]) => {
-      const cleanName = fund.replace(/[\\\/\?\*\[\]]/g, " ");
-      const sheetName = `Fund - ${cleanName}`;
+      // Use exact fund name (clean only truly invalid characters for sheet names: \ / ? *)
+      // Keep brackets [ ] as they are valid in Google Sheets names
+      const cleanName = fund.replace(/[\\\/\?\*]/g, " ").replace(/\s+/g, " ").trim();
+      const sheetName = cleanName; // No "Fund - " prefix, use exact fund name
       let targetSheet = ss.getSheetByName(sheetName);
       if (!targetSheet) targetSheet = ss.insertSheet(sheetName);
       targetSheet.clear();
@@ -234,12 +236,6 @@ const updateAllFunds = () => {
     const currentSheet = ss.getActiveSheet();
     const currentSheetName = currentSheet.getName();
     
-    // Check if current sheet is a fund sheet
-    if (!currentSheetName.startsWith("Fund - ")) {
-      SpreadsheetApp.getUi().alert("⚠️ Cannot rebuild this sheet. Please open a fund sheet (starting with 'Fund - ') and try again.");
-      return;
-    }
-    
     // Skip if trying to rebuild the master ledger or summary sheets
     if (currentSheetName === "BE - Master Ledger" || currentSheetName === "Summary") {
       SpreadsheetApp.getUi().alert("⚠️ Cannot rebuild this sheet. Please open a fund sheet and try again.");
@@ -265,9 +261,9 @@ const updateAllFunds = () => {
       throw new Error("No 'Account' column found in BE - Master Ledger");
     }
     
-    // Extract fund name from sheet name (remove "Fund - " prefix and trim)
-    const fundName = currentSheetName.replace(/^Fund - /, "").trim();
-    const cleanFundNameFromSheet = fundName.replace(/[\\\/\?\*\[\]]/g, " ");
+    // Use exact sheet name as fund name (sheets now use exact fund names without "Fund - " prefix)
+    const fundName = currentSheetName.trim();
+    const cleanFundNameFromSheet = fundName.replace(/[\\\/\?\*]/g, " ").replace(/\s+/g, " ").trim();
     
     // --- Filter: Only include rows where Account is "BE - Expenses" or "BE - Revenues" ---
     const allowedAccounts = ["BE - Expenses", "BE - Revenues"];
@@ -285,9 +281,9 @@ const updateAllFunds = () => {
       const accountStr = String(account).trim();
       if (!allowedAccounts.includes(accountStr)) return;
       
-      // Convert both to strings and clean for comparison
+      // Convert both to strings and clean for comparison (keep brackets)
       const fundStr = String(fund).trim();
-      const cleanFundFromData = fundStr.replace(/[\\\/\?\*\[\]]/g, " ");
+      const cleanFundFromData = fundStr.replace(/[\\\/\?\*]/g, " ").replace(/\s+/g, " ").trim();
       
       // Match by exact fund name, cleaned name, or cleaned sheet name
       if (fundStr === fundName || 

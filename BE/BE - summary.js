@@ -2,6 +2,11 @@ function createOrUpdateAuditSummary() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const masterSheet = ss.getSheetByName("BE - Master Ledger");
     if (!masterSheet) throw new Error("❌ Sheet 'BE - Master Ledger' not found.");
+    
+    // Extract prefix from master ledger name (e.g., "BE" from "BE - Master Ledger")
+    const masterSheetName = masterSheet.getName();
+    const prefixMatch = masterSheetName.match(/^([A-Z]+)\s*-\s*Master\s*Ledger/i);
+    const ledgerPrefix = prefixMatch ? `[${prefixMatch[1]}]` : "";
   
     const data = masterSheet.getDataRange().getValues();
     const richData = masterSheet.getDataRange().getRichTextValues();
@@ -63,12 +68,15 @@ function createOrUpdateAuditSummary() {
         credit,
         credit - debit, // Remaining balance
       ];
-    });
+    }).sort((a, b) => a[0].localeCompare(b[0])); // Sort alphabetically by fund name
   
     // --- Categorize accounts into 3 groups ---
-    const expensesRevenues = accountData.filter(([a]) => /Expense|Revenue/i.test(a));
-    const indovina = accountData.filter(([a]) => /Indovina/i.test(a));
-    const custodians = accountData.filter(([a]) => !/Expense|Revenue|Indovina/i.test(a));
+    const expensesRevenues = accountData.filter(([a]) => /Expense|Revenue/i.test(a))
+      .sort((a, b) => a[0].localeCompare(b[0])); // Sort alphabetically by account name
+    const indovina = accountData.filter(([a]) => /Indovina/i.test(a))
+      .sort((a, b) => a[0].localeCompare(b[0])); // Sort alphabetically by account name
+    const custodians = accountData.filter(([a]) => !/Expense|Revenue|Indovina/i.test(a))
+      .sort((a, b) => a[0].localeCompare(b[0])); // Sort alphabetically by account name
   
     // --- Create or clear Summary sheet ---
     const sheetName = "Summary";
@@ -145,8 +153,28 @@ function createOrUpdateAuditSummary() {
           // Add hyperlinks for fund names (column A)
           data.forEach((row, index) => {
             const fundName = row[0]; // Fund name is now in column A
-            const fundSheetName = "Fund - " + fundName;
-            const fundSheet = ss.getSheetByName(fundSheetName);
+            // Clean fund name to match how it's stored in funds.js (same cleaning logic)
+            // This replaces invalid sheet name characters: \ / ? * with spaces, then normalizes
+            // Keep brackets [ ] as they are valid in Google Sheets names
+            const cleanName = fundName.replace(/[\\\/\?\*]/g, " ").replace(/\s+/g, " ").trim();
+            
+            // Sheets now use exact fund names (without "Fund - " prefix, keeping brackets)
+            // Try exact fund name first (preserves brackets)
+            let fundSheet = ss.getSheetByName(fundName);
+            
+            // If not found with exact name, try cleaned name
+            if (!fundSheet) {
+              fundSheet = ss.getSheetByName(cleanName);
+            }
+            
+            // Fallback: try old format for backwards compatibility (in case old sheets exist)
+            if (!fundSheet) {
+              fundSheet = ss.getSheetByName("Fund - " + fundName);
+            }
+            if (!fundSheet) {
+              fundSheet = ss.getSheetByName("Fund - " + cleanName);
+            }
+            
             if (fundSheet) {
               const cell = summary.getRange(dataStart + index, startCol);
               const richText = SpreadsheetApp.newRichTextValue()
@@ -154,6 +182,9 @@ function createOrUpdateAuditSummary() {
                 .setLinkUrl(`#gid=${fundSheet.getSheetId()}`)
                 .build();
               cell.setRichTextValue(richText);
+            } else {
+              // Debug: log when sheet not found
+              console.log(`Fund sheet not found for: ${fundName} (tried: "${cleanName}")`);
             }
           });
         } else {
@@ -199,7 +230,10 @@ function createOrUpdateAuditSummary() {
         const totalDiff = isFundTable ? totalCredit - totalDebit : totalDebit - totalCredit;
         const totalRow = dataStart + data.length;
         
-        const totalLabel = isFundTable ? "GRAND TOTAL (All Account)" : "TOTAL";
+        // Use prefix for fund tables (e.g., "[BE] GRAND TOTAL (All Account)" or just "GRAND TOTAL" if no prefix)
+        const totalLabel = isFundTable ? 
+          (ledgerPrefix ? `${ledgerPrefix} GRAND TOTAL (All Account)` : "GRAND TOTAL (All Account)") : 
+          "TOTAL";
         const totalData = isFundTable ? 
           [totalLabel, totalDebit, totalCredit, totalDiff] :
           [totalLabel, totalDebit, totalCredit, totalDiff];

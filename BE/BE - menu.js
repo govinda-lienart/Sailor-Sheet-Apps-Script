@@ -36,7 +36,7 @@ function showHelp() {
 🔹 FUND MANAGER:
 • Full Rebuild (All Funds): Creates/updates ALL fund sheets at once
 • Update Current Sheet: Rebuilds ONLY the fund sheet you're currently viewing
-  (Just open any fund sheet (starting with 'Fund - ') and use this option!)
+  (Just open any fund sheet and use this option!)
 
 🔹 AUDIT TOOLS:
 • Update Summary Sheet: Creates/updates comprehensive audit summary reports
