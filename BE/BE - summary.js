@@ -35,11 +35,15 @@ function createOrUpdateAuditSummary() {
     });
   
     const accountData = Object.entries(accountMap).map(([account, { debit, credit }]) => {
+      // For Expense/Revenue accounts: Credit = revenue (money in), Debit = expense (money out)
+      // For other accounts (Bank, Custodian): Debit = money in, Credit = money out
+      const isExpenseRevenue = /Expense|Revenue/i.test(account);
+      const remaining = isExpenseRevenue ? credit - debit : debit - credit;
       return [
         account, // Just use the account name directly for now
         debit,
         credit,
-        debit - credit,
+        remaining,
       ];
     });
   
@@ -227,7 +231,10 @@ function createOrUpdateAuditSummary() {
         // Totals
         const totalDebit = data.reduce((s, r) => s + r[isFundTable ? 1 : 1], 0);
         const totalCredit = data.reduce((s, r) => s + r[isFundTable ? 2 : 2], 0);
-        const totalDiff = isFundTable ? totalCredit - totalDebit : totalDebit - totalCredit;
+        // For Expense/Revenue accounts and funds: Credit - Debit (revenue - expense)
+        // For other accounts (Bank, Custodian): Debit - Credit (money in - money out)
+        const totalDiff = isFundTable ? totalCredit - totalDebit : 
+          (data.length > 0 && /Expense|Revenue/i.test(data[0][0])) ? totalCredit - totalDebit : totalDebit - totalCredit;
         const totalRow = dataStart + data.length;
         
         // Use prefix for fund tables (e.g., "[BE] GRAND TOTAL (All Account)" or just "GRAND TOTAL" if no prefix)
