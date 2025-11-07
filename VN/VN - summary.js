@@ -106,11 +106,13 @@ function createOrUpdateAuditSummary() {
   
     // Helper function to insert one formatted table
     // tableType: "fund" = funds (debit=orange, credit=green), "revenue_expense" = same, "asset" = asset accounts (debit=green, credit=orange)
-    function insertTable(title, startRow, data, isFundTable = false, tableType = "asset", startCol = 2) {
+    // totalLabelOverride: optional custom label for total row (e.g., "GRAND TOTAL" instead of "TOTAL")
+    function insertTable(title, startRow, data, isFundTable = false, tableType = "asset", startCol = 2, totalLabelOverride = null) {
       const headers = isFundTable ? 
         ["Name", "Total Debit (VND)", "Total Credit (VND)", "Remaining (VND)"] :
         ["Account", "Total Debit (VND)", "Total Credit (VND)", "Remaining funds"];
-      const tableStart = startRow + 1;
+      // If title is provided, table starts one row after title. If no title, table starts immediately at startRow.
+      const tableStart = title ? startRow + 1 : startRow;
       const dataStart = tableStart + 1;
   
       if (title) {
@@ -142,7 +144,7 @@ function createOrUpdateAuditSummary() {
         
         // Color code Debit and Credit columns based on table type
         const debitCol = startCol + 1; // Column C
-        const creditCol = startCol + 2; // Column D
+        const creditCol = startCol + 2; // Column D`
         
         // For funds and revenue/expense: Debit=orange (expenses), Credit=green (revenues)
         // For asset accounts: Debit=green (money in), Credit=orange (money out)
@@ -238,9 +240,10 @@ function createOrUpdateAuditSummary() {
         const totalRow = dataStart + data.length;
         
         // Use prefix for fund tables (e.g., "[VN] GRAND TOTAL (All Account)" or just "GRAND TOTAL" if no prefix)
-        const totalLabel = isFundTable ? 
+        // Or use override if provided, otherwise default to "TOTAL" for non-fund tables
+        const totalLabel = totalLabelOverride || (isFundTable ? 
           (ledgerPrefix ? `${ledgerPrefix} GRAND TOTAL (All Account)` : "GRAND TOTAL (All Account)") : 
-          "TOTAL";
+          "TOTAL");
         const totalData = isFundTable ? 
           [totalLabel, totalDebit, totalCredit, totalDiff] :
           [totalLabel, totalDebit, totalCredit, totalDiff];
@@ -331,6 +334,70 @@ function createOrUpdateAuditSummary() {
       }
     }
   
+    // Helper function to insert a GRAND TOTAL row that combines multiple account groups
+    function insertGrandTotalRow(startRow, accountGroups, startCol = 2) {
+      const headers = ["Account", "Total Debit (VND)", "Total Credit (VND)", "Remaining funds"];
+      
+      // Calculate totals across all account groups
+      let totalDebit = 0;
+      let totalCredit = 0;
+      accountGroups.forEach(group => {
+        group.forEach(account => {
+          totalDebit += account[1]; // Debit column
+          totalCredit += account[2]; // Credit column
+        });
+      });
+      
+      // For asset accounts (bank, custodian): Debit - Credit
+      const totalRemaining = totalDebit - totalCredit;
+      
+      const grandTotalData = ["GRAND TOTAL", totalDebit, totalCredit, totalRemaining];
+      const totalRow = startRow;
+      
+      summary.getRange(totalRow, startCol, 1, headers.length).setValues([grandTotalData]);
+      summary.getRange(totalRow, startCol, 1, headers.length)
+        .setFontWeight("bold")
+        .setVerticalAlignment("middle");
+      summary.getRange(totalRow, startCol + 1, 1, 3).setNumberFormat("#,##0");
+      
+      // Style GRAND TOTAL row matching other totals:
+      // First cell (label) gets dark blue background with white text
+      const totalLabelCell = summary.getRange(totalRow, startCol, 1, 1);
+      totalLabelCell.setBackground("#0b5394")
+        .setFontColor("#ffffff")
+        .setHorizontalAlignment("left");
+      
+      // Value cells get light yellow/golden background and right alignment
+      const debitCol = startCol + 1;
+      const creditCol = startCol + 2;
+      summary.getRange(totalRow, debitCol, 1, 1)
+        .setBackground("#FFF9C4")
+        .setHorizontalAlignment("right");
+      summary.getRange(totalRow, creditCol, 1, 1)
+        .setBackground("#FFF9C4")
+        .setHorizontalAlignment("right");
+      summary.getRange(totalRow, creditCol + 1, 1, 1)
+        .setBackground("#FFF9C4")
+        .setHorizontalAlignment("right");
+      
+      // Thick dark blue border above GRAND TOTAL row
+      summary.getRange(totalRow, startCol, 1, headers.length)
+        .setBorder(true, false, false, false, false, false, // top border only (thick blue)
+          "#0b5394", SpreadsheetApp.BorderStyle.SOLID_THICK);
+      
+      // Thin light gray vertical lines in GRAND TOTAL row (between columns only)
+      summary.getRange(totalRow, startCol, 1, headers.length)
+        .setBorder(false, false, false, false, true, false, // vertical internal only
+          "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
+      
+      // Add horizontal line below the GRAND TOTAL row for section separation
+      const lineRow = totalRow + 1;
+      summary.getRange(lineRow, startCol, 1, headers.length)
+        .setBorder(false, false, false, false, false, true, "#d0d0d0", SpreadsheetApp.BorderStyle.SOLID);
+      
+      return totalRow + 2; // Return next row after spacing
+    }
+  
     // --- Insert VN - Master Ledger section first ---
     let nextRow = 7;
     summary.getRange(nextRow, startCol).setValue("📋 VN - MASTER LEDGER")
@@ -377,27 +444,43 @@ function createOrUpdateAuditSummary() {
     
     nextRow = masterDataStart + 3;
     
-    // --- Insert Accounts Summary FIRST ---
-    summary.getRange(nextRow, startCol).setValue("📊 ACCOUNTS SUMMARY")
+    // --- Insert Revenues and Expenses as standalone section ---
+    summary.getRange(nextRow, startCol).setValue("💰 REVENUES AND EXPENSES")
       .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
-    nextRow += 2;
-    
-    // --- Insert Account Summary tables ---
+    nextRow += 1; // Move to next row for table (table will start immediately since no title)
     console.log("Expenses/Revenues:", expensesRevenues); // Debug log
-    nextRow = insertTable("I. Revenues & Expenses", nextRow, expensesRevenues, false, "revenue_expense", startCol);
-    nextRow = insertTable("II. Indovina Bank Accounts", nextRow, indovina, false, "asset", startCol);
-    nextRow = insertTable("III. Custodian Accounts", nextRow, custodians, false, "asset", startCol);
+    nextRow = insertTable("", nextRow, expensesRevenues, false, "revenue_expense", startCol, "GRAND TOTAL");
     
-    // Add spacing and section header with horizontal line separator before Fund Summary (only 2 rows total)
-    nextRow += 1; // First spacing row
+    // Add spacing before Accounts Summary
+    nextRow += 1;
     summary.getRange(nextRow, startCol, 1, 10)
       .setBorder(false, false, false, false, false, true, "#b0b0b0", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    nextRow += 1; // Second spacing row - Fund Summary heading goes here
+    nextRow += 1;
     
-    // --- Insert Fund Summary AFTER Accounts Summary ---
+    // --- Insert Accounts Summary section ---
+    summary.getRange(nextRow, startCol).setValue("📊 ACCOUNTS SUMMARY")
+      .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
+    nextRow += 1; // One row spacing before first subsection
+    
+    // Insert Indovina Bank Accounts (subsection title is in insertTable, so table starts immediately after title)
+    nextRow = insertTable("I. Indovina Bank Accounts", nextRow, indovina, false, "asset", startCol);
+    
+    // Insert Custodian Accounts (subsection title is in insertTable, so table starts immediately after title)
+    nextRow = insertTable("II. Custodian Accounts", nextRow, custodians, false, "asset", startCol);
+    
+    // Insert GRAND TOTAL row combining both Indovina and Custodian accounts
+    nextRow = insertGrandTotalRow(nextRow, [indovina, custodians], startCol);
+    
+    // Add spacing before Fund Summary
+    nextRow += 1;
+    summary.getRange(nextRow, startCol, 1, 10)
+      .setBorder(false, false, false, false, false, true, "#b0b0b0", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    nextRow += 1;
+    
+    // --- Insert Fund Summary ---
     summary.getRange(nextRow, startCol).setValue("📊 FUND SUMMARY")
       .setFontWeight("bold").setFontSize(14).setFontColor("#0b5394");
-    nextRow += 2;
+    nextRow += 1; // Move to next row for table (table will start immediately since no title)
     console.log("Fund Data:", fundData); // Debug log
     nextRow = insertTable("", nextRow, fundData, true, "fund", startCol); // Empty title since we have separate heading
   
